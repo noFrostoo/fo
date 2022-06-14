@@ -1,7 +1,12 @@
 // równanie fali 2D
 
-const H = 128;
-const L = 2 * H + 1;
+
+const S = 500;
+
+const L = 30;
+
+let img_pixels = new Array(S);
+
 let u = new Array(L); // u(t)
 let u_next = new Array(L); // u(t)
 let u_prev = new Array(L); // u(t)
@@ -9,32 +14,156 @@ let u_prev = new Array(L); // u(t)
 let sourceShadow = new Array(L);
 
 let img;
+let pg;
+
 const SCALE = 2;
-const A = 127;
-const omega = 20;
+const A = 255;
+const omega = 300;
 let t = 0;
-const steps_per_frame = 10;
+const steps_per_frame = 20;
 const dt = 1 / 60 / steps_per_frame;
 const v = 0.1; // prędkość fazowa
 const dx = 1 / L;
 const c2 = v * v * dt * dt / dx / dx;
-const alpha = 0.5;
-
+const alpha = 0.0;
+let eps = 60; // do zmiany prędkości fali w ośrodku
 //source
 const sLen = 30;
 let sourceSliderX, sourceSliderY, sourceSliderAngle, sourceSpanX, sourceSpanY, sourceSpanAngle; 
 
+let source;
+let lines = [];
+
+let n1 = 1.003
+let n2 = 1.334
+
+class Light {
+  constructor(
+    x,y,angle,len, index
+  ) {
+    this.x = x;
+    this.y = y;
+    this.len = len;
+    this.angle = angle;
+    this.endLen = 0;
+    this.index = index;
+    console.log(x)
+    console.log(y)
+  }
+  move(x,y,angle){
+    this.x = x;
+    this.y = y;
+    this.angle = angle;
+  }
+
+  draw() {
+    let xs, ys, xl, yl;
+    for (let i = 0; i < this.Len; ++i) {
+      xs = this.x+floor(cos(this.angle)*i);
+      ys = this.y-floor(sin(this.angle)*i)
+      if ((0 < xs) && (xs < (S-1)) && (0 < ys) && (ys < (S-1)) ) {
+        img_pixels[xs][ys] = A
+      }
+    }
+
+    let xi,yi;
+    for (let i = 0; i <S; ++i) {
+        xs = this.x+floor(cos(270+this.angle)*i)
+        ys = this.y-floor(sin(270+this.angle)*i)
+        if ((0 < xs) && (xs < (S-1)) && (0 < ys) && (ys < (S-1)) && !this.checkOverlap([[this.x,this.y],[xs,ys]]) ) {
+          img_pixels[xs][ys] = A
+        }
+
+        xl = this.x-floor(sin(270+this.angle)*this.len)
+        yl = this.y-floor(cos(270+this.angle)*this.len)
+        xi = xl+floor(cos(270+this.angle)*i)
+        yi = yl-floor(sin(270+this.angle)*i)
+        if (((0 < xi) && (xi < (S-1)) && (0 < yi) && (yi < (S-1)) && !this.checkOverlap([[xl,yl],[xi,yi]]) )) {
+          this.endLen = round(Math.sqrt( Math.pow(yi-ys,2) + pow(xi-xs,2) ))
+          img_pixels[xi][yi] = A
+        }
+
+      
+        if(this.checkOverlap([[xl,yl],[xi,yi]])) {
+          let angle, sin = this.calculateAngle([[xl,yl],[xi,yi]])
+          if(lines.length > this.index + 1 && lines.length > 0) {
+            //lines[this.index + 1].move(xs, ys, angle)
+          } else {
+            console.log(xs + 1)
+            console.log(ys + 2)
+            let l = new Light(xs+1,ys+1,angle,this.endLen, this.index+1)
+            lines.push(l);
+          }
+            
+        }
+
+      }
+
+      for (let i = 0; i < this.len; ++i) {
+        for(let j = 0; j < S; ++j) {
+          xl = this.x-floor(sin(270+this.angle)*i)
+          yl = this.y-floor(cos(270+this.angle)*i)
+          xi = xl+floor(cos(270+this.angle)*j)
+          yi = yl-floor(sin(270+this.angle)*j)
+          if ((0 < xi) && (xi < (S-1)) && (0 < yi) && (yi < (S-1)) && !this.checkOverlap([[xl,yl],[xi,yi]])  ) {
+            img_pixels[xi][yi] = A
+          }
+        }
+      }
+  }
+
+  checkOverlap(points) {
+    console.log(points)
+    let r = lineclip(points, [400,0,400,200]).length
+    return r != 0
+  }
+
+  calculateAngle(points) {
+    let vn1 = createVector(points[1][0] - points[0][0], points[1][1] - points[0][1]).normalize();
+    let vn2 = createVector(0,500).normalize();
+    let d = vn1.dot(vn2);
+    let sin = sqrt(1 - d*d)
+    let sin2 = (sin * n1) / n2
+    return sin2, asin(sin2)
+  }
+
+}
+
+
+class Rect {
+  constructor(
+    points, x,y
+  ) {
+    this.points = points;
+    this.endLen = 0;
+    this.x = x;
+    this.y = y;
+  }
+  move(x,y,angle){
+    this.x = x;
+    this.y = y;
+    this.angle = angle;
+  }
+  draw() {
+    for(let i = 0; i < 4; ++i) {
+
+    }
+  }
+
+}
+
 
 function setup() {
-  createCanvas(L * SCALE, L * SCALE);
-  img = createImage(L, L);
+  createCanvas(S, S);
+  img = createImage(S, S);
+  pg = createGraphics(S, S);
 
   createP("Source X:");
-  sourceSliderX = createSlider(0, L, H, 1);
+  sourceSliderX = createSlider(0, 500, 100, 1);
   sourceSpanX = createSpan(`\t${sourceSliderX.value()}`);
 
   createP("Source Y:");
-  sourceSliderY = createSlider(0, L, H, 1);
+  sourceSliderY = createSlider(0, 500, 100, 1);
   sourceSpanY = createSpan(`\t${sourceSliderY.value()}`);
 
   createP("Source angle:");
@@ -43,28 +172,40 @@ function setup() {
 
   angleMode(DEGREES);
 
+  for(let i = 0; i<S; ++i) {
+    img_pixels[i] = new Array(S);
+  }
+
+  for (let x = 0; x < S; ++x)
+    for (let y = 0; y < S; ++y) {
+      img_pixels[x][y] = 0;
+    }
+  
   for (let i = 0; i < L; ++i) {
-    u[i] = new Array(L);
-    u_next[i] = new Array(L);
-    u_prev[i] = new Array(L);
-    sourceShadow[i] = new Array(L);
+    u[i] = new Array(S);
+    u_next[i] = new Array(S);
+    u_prev[i] = new Array(S);
+    sourceShadow[i] = new Array(S);
   }
 
   for (let x = 0; x < L; ++x)
-    for (let y = 0; y < L; ++y) {
+    for (let y = 0; y < S; ++y) {
       u[x][y] = 0;
       u_next[x][y] = 0;
       u_prev[x][y] = 0;
       sourceShadow[x][y] = 0;
     }
+
+  source = new Light(sourceSliderX.value(), sourceSliderY.value(), sourceSliderAngle.value(), sLen, -1) 
 }
 
 function update() {
-  let eps = 10; // do zmiany prędkości fali w ośrodku
+  for(let i = 0; i < L; ++i){
+    u_next[i][0] = A * sin(omega * t);
+  }
+
   for (let x = 1; x < L - 1; ++x)
-    for (let y = 1; y < L - 1; ++y) {
-      if (y < H) eps = 2;
-      else eps = 1;
+    for (let y = 1; y < S - 1; ++y) {
       u_next[x][y] = 2 * u[x][y] - u_prev[x][y];
       u_next[x][y] += eps * c2 * (u[x + 1][y] - 2 * u[x][y] + u[x - 1][y]);
       u_next[x][y] += eps * c2 * (u[x][y + 1] - 2 * u[x][y] + u[x][y - 1]);
@@ -73,27 +214,26 @@ function update() {
 
   // brzegi
   for (let x = 0; x < L; ++x) {
-    u_next[x][0] = u_next[x][1];
-    u_next[0][x] = u_next[1][x];
-    u_next[x][L - 1] = u_next[x][L - 2];
-    u_next[L - 1][x] = u_next[L - 2][x];
-  }
-
-  for (let x = 0; x < L; ++x) {
     u_prev[x] = u[x].slice();
     u[x] = u_next[x].slice();
   }
 }
 
-function shouldUpdate(angle, x, y) {
-  
-
-}
-
 function draw() {
-
   const d = 20;
 
+  for (let x = 0; x < S; ++x)
+    for (let y = 0; y < S; ++y) {
+      img_pixels[x][y] = 0;
+    }
+  
+  pg.noFill();
+  
+  pg.color(255,255,255);
+  pg.stroke(255, 40, 40);
+
+  pg.line(400,0,400,200);
+  
   //update spans
   sourceSpanX.html(`\t${sourceSliderX.value()}`)
   sourceSpanY.html(`\t${sourceSliderY.value()}`)
@@ -102,39 +242,147 @@ function draw() {
   for (let step = 0; step < steps_per_frame; ++step) {
 
     // source
-    sourceMove(u, sourceSliderX.value(), sourceSliderX.value(), sourceSliderAngle.value())
-
     //update()
+
+    
+    source.move(sourceSliderX.value(), sourceSliderY.value(), sourceSliderAngle.value())
+    source.draw();
+
+    //for(let line of lines)
+      //line.draw()
+
     t += dt;
   }
+
   img.loadPixels();
-  for (let x = 0; x < L; ++x)
-    for (let y = 0; y < L; ++y)
-      img.set(x, y, 127 + u[x][y]);
+  for (let x = 0; x < S; ++x)
+    for (let y = 0; y < S; ++y)
+      img.set(x, y, img_pixels[x][y]);
 
   img.updatePixels();
-  image(img, 0, 0, L * SCALE, L * SCALE);
+  image(img, 0, 0, S, S);
+  image(pg, 0, 0);
+  image(pg, 0, S);
+}
+// line(x,y,x+floor(cos(angle)*sLen), y-floor(sin(angle)*sLen))
+// line(x,y,x+floor(cos(270+angle)*L), y-floor(sin(270+angle)*L))
+// line(x-floor(sin(270+angle)*sLen),y-floor(cos(270+angle)*sLen),x-sLen*norm(sin(angle),-1,1)+floor(cos(270+angle)*L), y-floor(sin(270+angle)*L))
+
+
+//TAKEN FROM https://github.com/mapbox/lineclip
+
+// Cohen-Sutherland line clippign algorithm, adapted to efficiently
+// handle polylines rather than just segments
+
+function lineclip(points, bbox, result) {
+
+    var len = points.length,
+        codeA = bitCode(points[0], bbox),
+        part = [],
+        i, a, b, codeB, lastCode;
+
+    if (!result) result = [];
+
+    for (i = 1; i < len; i++) {
+        a = points[i - 1];
+        b = points[i];
+        codeB = lastCode = bitCode(b, bbox);
+
+        while (true) {
+
+            if (!(codeA | codeB)) { // accept
+                part.push(a);
+
+                if (codeB !== lastCode) { // segment went outside
+                    part.push(b);
+
+                    if (i < len - 1) { // start a new line
+                        result.push(part);
+                        part = [];
+                    }
+                } else if (i === len - 1) {
+                    part.push(b);
+                }
+                break;
+
+            } else if (codeA & codeB) { // trivial reject
+                break;
+
+            } else if (codeA) { // a outside, intersect with clip edge
+                a = intersect(a, b, codeA, bbox);
+                codeA = bitCode(a, bbox);
+
+            } else { // b outside
+                b = intersect(a, b, codeB, bbox);
+                codeB = bitCode(b, bbox);
+            }
+        }
+
+        codeA = lastCode;
+    }
+
+    if (part.length) result.push(part);
+
+    return result;
 }
 
+// Sutherland-Hodgeman polygon clipping algorithm
 
-function sourceMove(u, x, y, angle) {
-  //TODO chekchs for safty
-  for (let i = 0; i < sLen; ++i)
-      u[x+floor(cos(angle)*i)][y-floor(sin(angle)*i)] = A
-      //A * sin(omega * t * 57.2958)
-  
-  let xi,yi;
-  for (let i = 0; i < L; ++i) {
-      xi = x+floor(cos(270+angle)*i)
-      yi = y-floor(sin(270+angle)*i)
-      if ((0 < xi) && (xi < (L-1)) && (0 < yi) && (yi < (L-1)) ) {
-        u[xi][yi] = A
-      }
-      xi = x+sLen+floor(cos(270+angle)*i)
-      yi = y-floor(sin(270+angle)*i)
-      if ((0 < xi) && (xi < (L-1)) && (0 < yi) && (yi < (L-1)) ) {
-        u[xi][yi] = A
-      }
-  }
-  
+function polygonclip(points, bbox) {
+
+    var result, edge, prev, prevInside, i, p, inside;
+
+    // clip against each side of the clip rectangle
+    for (edge = 1; edge <= 8; edge *= 2) {
+        result = [];
+        prev = points[points.length - 1];
+        prevInside = !(bitCode(prev, bbox) & edge);
+
+        for (i = 0; i < points.length; i++) {
+            p = points[i];
+            inside = !(bitCode(p, bbox) & edge);
+
+            // if segment goes through the clip window, add an intersection
+            if (inside !== prevInside) result.push(intersect(prev, p, edge, bbox));
+
+            if (inside) result.push(p); // add a point if it's inside
+
+            prev = p;
+            prevInside = inside;
+        }
+
+        points = result;
+
+        if (!points.length) break;
+    }
+
+    return result;
+}
+
+// intersect a segment against one of the 4 lines that make up the bbox
+
+function intersect(a, b, edge, bbox) {
+    return edge & 8 ? [a[0] + (b[0] - a[0]) * (bbox[3] - a[1]) / (b[1] - a[1]), bbox[3]] : // top
+        edge & 4 ? [a[0] + (b[0] - a[0]) * (bbox[1] - a[1]) / (b[1] - a[1]), bbox[1]] : // bottom
+        edge & 2 ? [bbox[2], a[1] + (b[1] - a[1]) * (bbox[2] - a[0]) / (b[0] - a[0])] : // right
+        edge & 1 ? [bbox[0], a[1] + (b[1] - a[1]) * (bbox[0] - a[0]) / (b[0] - a[0])] : null; // left
+}
+
+// bit code reflects the point position relative to the bbox:
+
+//         left  mid  right
+//    top  1001  1000  1010
+//    mid  0001  0000  0010
+// bottom  0101  0100  0110
+
+function bitCode(p, bbox) {
+    var code = 0;
+
+    if (p[0] < bbox[0]) code |= 1; // left
+    else if (p[0] > bbox[2]) code |= 2; // right
+
+    if (p[1] < bbox[1]) code |= 4; // bottom
+    else if (p[1] > bbox[3]) code |= 8; // top
+
+    return code;
 }
