@@ -37,6 +37,9 @@ let lines = [];
 let n1 = 1.003
 let n2 = 1.334
 
+
+let dP, dp2; //debug spans
+
 class Light {
   constructor(
     x,y,angle,len, index
@@ -87,12 +90,12 @@ class Light {
         if(this.checkOverlap([[xl,yl],[xi,yi]])) {
           let angle, sin = this.calculateAngle([[xl,yl],[xi,yi]])
           if(lines.length > this.index + 1 && lines.length > 0) {
-            //lines[this.index + 1].move(xs, ys, angle)
+          //   //lines[this.index + 1].move(xs, ys, angle)
           } else {
-            console.log(xs + 1)
-            console.log(ys + 2)
-            let l = new Light(xs+1,ys+1,angle,this.endLen, this.index+1)
-            lines.push(l);
+            dP.html(`\t${xs}`)
+            dP2.html(`\t${xs}`)
+            //let l = new Light(xs+1,ys+1,angle,this.endLen, this.index+1)
+            // lines.push(l);
           }
             
         }
@@ -113,7 +116,6 @@ class Light {
   }
 
   checkOverlap(points) {
-    console.log(points)
     let r = lineclip(points, [400,0,400,200]).length
     return r != 0
   }
@@ -169,6 +171,11 @@ function setup() {
   createP("Source angle:");
   sourceSliderAngle = createSlider(0, 180, 0, 1);
   sourceSpanAngle = createSpan(`\t${sourceSliderAngle.value()}`);
+
+  createP("Debug:")
+  dP = createSpan(`\tdebug`);
+  createP("Debug2:")
+  dP2 = createSpan(`\tdebug`);
 
   angleMode(DEGREES);
 
