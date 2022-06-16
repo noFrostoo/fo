@@ -20,7 +20,7 @@ const SCALE = 2;
 const A = 255;
 const omega = 300;
 let t = 0;
-const steps_per_frame = 20;
+const steps_per_frame = 1;
 const dt = 1 / 60 / steps_per_frame;
 const v = 0.1; // prędkość fazowa
 const dx = 1 / L;
@@ -38,15 +38,15 @@ let n1 = 1.003
 let n2 = 1.334
 
 
-let dP, dp2; //debug spans
+let dP, dp2, dp3; //debug spans
 
 class Light {
   constructor(
-    x,y,angle,len, index
+    x,y, len, angle, index
   ) {
     this.x = x;
     this.y = y;
-    this.len = len;
+    this.len = len
     this.angle = angle;
     this.endLen = 0;
     this.index = index;
@@ -59,8 +59,20 @@ class Light {
     this.angle = angle;
   }
 
+  modify(x,y,angle,Len) {
+    this.x = x;
+    this.y = y;
+    this.angle = angle;
+    this.len = Len
+  }
+
   draw() {
-    let xs, ys, xl, yl;
+    console.log("len", this.index, this.len, this.x, this.y, this.angle)
+    let xs, ys, xl, yl, first, last, overlap;
+    overlap = false;
+    first = [];
+    last = [];
+
     for (let i = 0; i < this.Len; ++i) {
       xs = this.x+floor(cos(this.angle)*i);
       ys = this.y-floor(sin(this.angle)*i)
@@ -82,24 +94,8 @@ class Light {
         xi = xl+floor(cos(270+this.angle)*i)
         yi = yl-floor(sin(270+this.angle)*i)
         if (((0 < xi) && (xi < (S-1)) && (0 < yi) && (yi < (S-1)) && !this.checkOverlap([[xl,yl],[xi,yi]]) )) {
-          this.endLen = round(Math.sqrt( Math.pow(yi-ys,2) + pow(xi-xs,2) ))
           img_pixels[xi][yi] = A
         }
-
-      
-        if(this.checkOverlap([[xl,yl],[xi,yi]])) {
-          let angle, sin = this.calculateAngle([[xl,yl],[xi,yi]])
-          if(lines.length > this.index + 1 && lines.length > 0) {
-          //   //lines[this.index + 1].move(xs, ys, angle)
-          } else {
-            dP.html(`\t${xs}`)
-            dP2.html(`\t${xs}`)
-            //let l = new Light(xs+1,ys+1,angle,this.endLen, this.index+1)
-            // lines.push(l);
-          }
-            
-        }
-
       }
 
       for (let i = 0; i < this.len; ++i) {
@@ -108,12 +104,67 @@ class Light {
           yl = this.y-floor(cos(270+this.angle)*i)
           xi = xl+floor(cos(270+this.angle)*j)
           yi = yl-floor(sin(270+this.angle)*j)
-          if ((0 < xi) && (xi < (S-1)) && (0 < yi) && (yi < (S-1)) && !this.checkOverlap([[xl,yl],[xi,yi]])  ) {
-            img_pixels[xi][yi] = A
+          if ((0 < xi) && (xi < (S-1)) && (0 < yi) && (yi < (S-1)) ) {
+            if( this.checkOverlap([[xl,yl],[xi,yi]])  ) {
+                overlap = true
+                if(first.length == 0) {
+                  first = [xi,yi]
+                } else {
+                  last = [xi, yi]
+                  this.endLen = round(Math.sqrt( Math.pow(last[1] - first[1],2) + pow(last[0] - first[0],2) ))
+                }
+                dP.html(`\t${xi}`)
+                dP2.html(`\t${yi}`)
+                dP3.html(`\toverlap ${this.endLen}`)
+                break;
+            }else {
+              if(!overlap) {
+                first = []
+                last = []
+              }
+              img_pixels[xi][yi] = A
+              //
+              dP3.html(`\tnot ${this.endLen}`)
+            }
           }
         }
       }
+
+      if(overlap) {
+        console.log("XD", last)
+        let s, angle = this.calculateAngle([[xl,yl],[xi,yi]])
+        console.log("XD2", angle, s)
+        if(lines.length > this.index + 1 && lines.length > 0) {
+          console.log("e", this.endLen)
+          lines[this.index + 1].modify(last[0],last[1], angle, this.endLen)
+        } else {
+          console.log("pupa")
+          console.log("e", this.endLen)
+          let l = new Light(last[0],last[1], angle,this.endLen, this.index+1)
+          lines.push(l)
+        }
+      } else {
+        for(let i = this.index; i < lines.length; ++i) {
+          lines.splice(this.index, lines.length)
+        }
+      }
   }
+
+  // if(this.checkOverlap([[xl,yl],[xi,yi]])) {
+  //   let angle, sin = this.calculateAngle([[xl,yl],[xi,yi]])
+    // if(lines.length > this.index + 1 && lines.length > 0) {
+    // //   //lines[this.index + 1].move(xs, ys, angle)
+    // } else {
+    //   dP.html(`\t${xs}`)
+    //   dP2.html(`\t${xs}`)
+    //   dP3.html(`\toverlap`)
+  //     //let l = new Light(xs+1,ys+1,angle,this.endLen, this.index+1)
+  //     // lines.push(l);
+  //   }
+      
+  // }else {
+  //   
+  // }
 
   checkOverlap(points) {
     let r = lineclip(points, [400,0,400,200]).length
@@ -122,7 +173,7 @@ class Light {
 
   calculateAngle(points) {
     let vn1 = createVector(points[1][0] - points[0][0], points[1][1] - points[0][1]).normalize();
-    let vn2 = createVector(0,500).normalize();
+    let vn2 = createVector(0, 200).normalize();
     let d = vn1.dot(vn2);
     let sin = sqrt(1 - d*d)
     let sin2 = (sin * n1) / n2
@@ -176,6 +227,8 @@ function setup() {
   dP = createSpan(`\tdebug`);
   createP("Debug2:")
   dP2 = createSpan(`\tdebug`);
+  createP("Debug2:")
+  dP3 = createSpan(`\tdebug`);
 
   angleMode(DEGREES);
 
@@ -203,7 +256,7 @@ function setup() {
       sourceShadow[x][y] = 0;
     }
 
-  source = new Light(sourceSliderX.value(), sourceSliderY.value(), sourceSliderAngle.value(), sLen, -1) 
+  source = new Light(sourceSliderX.value(), sourceSliderY.value(), sLen, sourceSliderAngle.value(), -1) 
 }
 
 function update() {
@@ -251,12 +304,12 @@ function draw() {
     // source
     //update()
 
-    
     source.move(sourceSliderX.value(), sourceSliderY.value(), sourceSliderAngle.value())
     source.draw();
 
-    //for(let line of lines)
-      //line.draw()
+    for(let line of lines)
+      line.draw()
+
 
     t += dt;
   }
