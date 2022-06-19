@@ -1,10 +1,10 @@
-// równanie fali 2D
+// DANIEL LIPNIACKI (INDEX: 304067)
 
 
 const S = 500;
 const L = 15;
 
-const lightLen = 600;
+const lightLen = 900;
 
 let img_pixels = new Array(S);
 let img;
@@ -19,8 +19,8 @@ const sLen = 15;
 let source;
 let yR = 0;
 let moveSize = 30;
-let sourceX = 200;
-let sourceY = 200;
+let sourceX = 2;
+let sourceY = 2;
 let locked = false;
 let objectColor = [255, 40, 40]
 
@@ -30,14 +30,12 @@ let yOffset = 0.0;
 let sourceAngle = 70;
 
 let totalReflection = false;
-
-let waveCheckbox;
-let wave = false;
+let totalReflectionP;
 
 let rect;
-let rStartPoints = [[10,10],[10,100],[100,100],[100,10]];
-let rectX = 10;
-let rectY = 10;
+let rStartPoints = [[100,100],[100,200],[200,200],[200,100]];
+let rectX = 100;
+let rectY = 100;
 let size = 100;
 let lockedObject = false;
 let objectHover = false
@@ -47,7 +45,6 @@ let n2 = 3
 
 let line = [[0,128],[S,128]]
 
-let dP, dp2, dp3; //debug spans
 
 class Rect {
     constructor(
@@ -74,23 +71,33 @@ class Rect {
         pg.line(this.points[1][0],this.points[1][1],this.points[2][0],this.points[2][1]);
         pg.line(this.points[2][0],this.points[2][1],this.points[3][0],this.points[3][1]);
         pg.line(this.points[3][0],this.points[3][1],this.points[0][0],this.points[0][1]);
-    }
+        pg.fill(135,206,235)
+        pg.rect(this.points[0][0]+1,this.points[0][1]+1,size-1,size-1)
+        pg.noFill()
+      }
+
 
     checkOverlap(l) {
+      let index = 0
       for(let i = 0; i < 4; ++i) {
         let plain;
-        if(i != 3) {
-          plain = [...this.points[i],...this.points[i+1] ]
+        if(i == 3) {
+          plain = [...this.points[0],...this.points[3] ]
+          index = 3
+        } else if(i == 2) {
+          plain = [...this.points[3],...this.points[2] ]
+          index = 3
         }
-        else
-          plain = [...this.points[3],...this.points[0] ]
+        else {
+          plain = [...this.points[i],...this.points[i+1] ]
+          index = i
+        }
 
         if(lineclip(l, plain).length  != 0) {
-          console.log(plain)
-          return [true, plain]
+          return [true, plain, index]
         }
       }
-      return [false, []] 
+      return [false, [], index] 
     }
 }
 
@@ -133,16 +140,13 @@ class Light {
       yl = overlapPoints[overlapPoints.length-1][1]
       xi = xl+floor(round(cos(angle),10)*(j-base))
       yi = yl+floor(round(sin(angle),10)*(j-base))
-      xi2 = xl+floor(round(cos(-angle2),10)*(j-base))
-      yi2 = yl+floor(round(sin(-angle2),10)*(j-base))
       if ( !((0 < xi) && (xi < (S-1)) && (0 < yi) && (yi < (S-1))) ) {
         break
       }
 
-      let [rO, plain] = rect.checkOverlap([[xl,yl],[xi,yi]])
+      let [rO, plain, index] = rect.checkOverlap([[xl,yl],[xi,yi]])
       if( rO && waitCounter == 0 ) {
         let a, a2;
-        console.log([[xl,yl],[xi,yi]])
         if(inside) {
           [a, a2] = this.calculateAngle([[xl,yl],[xi,yi]], plain, n2, n1)
           if(!totalReflection) {
@@ -156,25 +160,35 @@ class Light {
         }
         
         angle = 90-a
-        angle2 = 90-a2
-        console.log(angle, angle2)
+        angle2 = a2
 
         if(totalReflection) {
-          overlapPoints.push([xi2+1,yi2+1])
+          if(index == 0) {
+            xi2 = xl+floor(round(cos(270 - angle2),10)*(j))
+            yi2 = yl+floor(round(sin(270 - angle2),10)*(j))
+            xi2 = xl+floor(round(cos(250 - angle2),10)*(j))
+            yi2 = yl+floor(round(sin(250 - angle2),10)*(j))
+          } else {
+            xi2 = xl+floor(round(cos(angle2),10)*(j))
+            yi2 = yl+floor(round(sin(angle2),10)*(j))
+          }
+
+          overlapPoints.push([xi+1,yi-2])
           waitCounter = 4
         } else {
           overlapPoints.push([xi+1,yi+1])
           waitCounter = 4
         }
+
+        
         base += round(Math.sqrt( Math.pow(xi - xl,2) + pow(yi - yl,2) ))
+      } else {
+        totalReflection = false
       }
       
       if(waitCounter != 0)
         --waitCounter
     }
-
-    dP.html(`\t${xl} ${yl} ${angle} ${angle2} | ${overlapPoints} | ${totalReflection}`)
-    dP2.html(`\t${xi} ${yi} ${base} ${overlapPoints.length} | ${(cos(270+angle))}  | ${(sin(270+angle))} | ${angle}`)
 
     pg.color(255,255,255);
     pg.stroke(30,30,0);
@@ -184,8 +198,10 @@ class Light {
       pg.line(overlapPoints[i][0], overlapPoints[i][1], overlapPoints[i+1][0], overlapPoints[i+1][1])
     }
     
-    pg.line(overlapPoints[overlapPoints.length-1][0],overlapPoints[overlapPoints.length-1][1], xi, yi)
-
+    if(totalReflection)
+      pg.line(overlapPoints[overlapPoints.length-1][0],overlapPoints[overlapPoints.length-1][1], xi2, yi2)
+    else
+      pg.line(overlapPoints[overlapPoints.length-1][0],overlapPoints[overlapPoints.length-1][1], xi, yi)
 
   }
 
@@ -199,8 +215,6 @@ class Light {
     } else {
       totalReflection = false
     }
-    console.log(plane)
-    dP3.html(`\t${asin(sin)}} | ${asin(sin2)} | ${sin}| vn ${vn1} - ${vn2} |${sin2} | ${points} | ${plane} | ${[points[1][0] - points[0][0], points[1][1] - points[0][1]]} `)
     return [round(asin(sin2)), round(asin(sin))] ;
   }
 
@@ -223,16 +237,7 @@ function setup() {
     sourceSliderAngle = createSlider(0, 180, sourceAngle, 1).parent("leftPanel");
     sourceSpanAngle = createSpan(`\t${sourceSliderAngle.value()}`).parent("leftPanel");
   
-    createP("Show wave: ").parent("rightPanel");
-    waveCheckbox = createCheckbox("Wave", wave).parent("rightPanel");
-
-  
-    createP("Debug:")
-    dP = createSpan(`\tdebug`);
-    createP("Debug2:")
-    dP2 = createSpan(`\tdebug`);
-    createP("Debug2:")
-    dP3 = createSpan(`\tdebug`);
+    totalReflectionP = createP(`No total reflection`).parent("infobox");
   
     angleMode(DEGREES);
   
@@ -246,7 +251,7 @@ function setup() {
       }
   
     source = new Light(sourceX, sourceY, sLen, sourceSliderAngle.value(), -1) 
-    rect = new Rect([[10,10],[10,100],[100,100],[100,10]])
+    rect = new Rect(rStartPoints)
   }
 
   function draw() {
@@ -265,17 +270,20 @@ function setup() {
   
     n1 = sourceSliderX.value();
     n2 = sourceSliderY.value();
-  
-    wave = waveCheckbox.checked();
-    
-    dP2.html(`${totalReflection}`)
+
+    rect.draw();
 
     source.draw();
     source.move(sourceX, sourceY, sourceSliderAngle.value())
 
-    rect.draw();
   
     checkObjectHover();
+
+    if(totalReflection) {
+      totalReflectionP.html(`Total Reflection`)
+    } else {
+      totalReflectionP.html(`No total Reflection`)
+    }
 
     img.loadPixels();
     for (let x = 0; x < S; ++x)
@@ -326,8 +334,3 @@ function setup() {
       xOffset = mouseX - rectX;
       yOffset = mouseY - rectY;
   }
-
-  // function round(n, precision) {
-  //   var power = Math.pow(10, precision);
-  //   return Math.round(n * power) / power;
-  // }

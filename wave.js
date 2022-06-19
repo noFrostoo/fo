@@ -85,10 +85,12 @@ class Light {
   }
 
   draw() {
-    let xs, ys, xl, yl;
+    let xs, ys, xl, yl, first, last;
     let angle = this.angle;
     let angle2 = this.angle;
     let angle3 = this.angle;
+    first = [];
+    last = [];
 
     for (let i = 0; i < this.Len; ++i) {
       xs = this.x+floor(cos(angle)*i);
@@ -131,7 +133,12 @@ class Light {
             ox = xi
             oy = yi
             base = round(Math.sqrt( Math.pow(xi - xl,2) + pow(yi - yl,2) ))
-          }
+            if(first.length == 0) {
+              first = [xi, yi]
+            } else{
+              last = [xi, yi]
+            }
+          } 
           if (angle2 != 0 && (0 < xi) && (xi < (S-1)) && (0 < yi) && (yi < (S-1)) ) {
             let v = [255,255,0,255]
             if(wave) 
@@ -161,6 +168,13 @@ class Light {
             } 
           }
         }
+      }
+
+      if(last.length != 0 && first.length != 0) {
+        pg.drawingContext.setLineDash([5, 10, 30, 10]);
+        let xm = (last[0]*SCALE+first[0]*SCALE) / 2 
+        let ym = (last[1]*SCALE+first[1]*SCALE) / 2
+        pg.line(xm, ym+70, xm, ym-70)
       }
   }
 
@@ -206,12 +220,7 @@ function setup() {
 
   totalReflectionP = createP(`Not total reflection. <br/> Incite angle ${incitedAngle} <br/> Reflection angle ${reflectionAngle} <br/>`).parent("infobox");
 
-  createP("Debug:")
-  dP = createSpan(`\tdebug`);
-  createP("Debug2:")
-  dP2 = createSpan(`\tdebug`);
-  createP("Debug2:")
-  dP3 = createSpan(`\tdebug`);
+  ellipseMode(CORNERS)
 
   angleMode(DEGREES);
 
@@ -287,9 +296,10 @@ function draw() {
       if(y<line[0][1])
         img_pixels[x][y] = [220,220,220,255];
       else
-        img_pixels[x][y] = [0,0,200,255];
+        img_pixels[x][y] = [135,206,235,255];
     }
   
+  pg.clear()
 
   //update spans
   sourceSpanX.html(`\t${sourceSliderX.value()}`)
