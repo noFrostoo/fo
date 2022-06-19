@@ -34,7 +34,6 @@ let eps = 1.003; // do zmiany prędkości fali w ośrodku
 
 
 let sourceSliderX, sourceSliderY, sourceSliderAngle, sourceSpanX, sourceSpanY, sourceSpanAngle; 
-
 const sLen = 15;
 let source;
 let yR = 0;
